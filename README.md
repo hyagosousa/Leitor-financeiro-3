@@ -28,11 +28,11 @@ td { background: #063; }
   <thead>
     <tr>
       <th>Arquivo</th>
+      <th>Resultado do Período (2600)</th>
       <th>Produtos (2603)</th>
       <th>Mercadoria (2652)</th>
       <th>Prestação Serviços (2700)</th>
       <th>Simples Nacional (2831)</th>
-      <th>Resultado do Período</th>
     </tr>
   </thead>
   <tbody id="tabelaResumo"></tbody>
@@ -78,51 +78,39 @@ function extrairInformacoes(texto, nomeArquivo) {
 
   texto = texto.replace(/\s+/g, " ");
 
-  // Função para pegar a quarta coluna (saldo) de uma linha
   function pegarSaldoDaLinha(linha) {
     if (!linha) return "-";
     const numeros = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
     return numeros && numeros.length >= 4 ? numeros[3].replace(/\s+/g,"") : "-";
   }
 
-  // Função para buscar linha pelo código exato
   function buscarLinha(codigo) {
     const regex = new RegExp(`${codigo}.*?(?=\\d{4}|$)`, "i");
     const match = texto.match(regex);
     return match ? match[0] : "";
   }
 
+  const resultadoLinha = buscarLinha("2600");
   const produtosLinha = buscarLinha("2603");
   const mercadoriaLinha = buscarLinha("2652");
   const servicosLinha = buscarLinha("2700");
   const simplesLinha = buscarLinha("2831");
 
+  const resultado = pegarSaldoDaLinha(resultadoLinha);
   const produtos = pegarSaldoDaLinha(produtosLinha);
   const mercadoria = pegarSaldoDaLinha(mercadoriaLinha);
   const servicos = pegarSaldoDaLinha(servicosLinha);
   const simples = pegarSaldoDaLinha(simplesLinha);
 
-  // Resultado do Período
-  let resultado = "-";
-  const regexResultado = /resultado do período(.{0,200})/i;
-  const matchResultado = texto.match(regexResultado);
-  if (matchResultado) {
-    const trecho = matchResultado[1];
-    const numeros = trecho.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
-    if (numeros && numeros.length >= 1) {
-      resultado = numeros[numeros.length - 1].replace(/\s+/g,"");
-    }
-  }
-
   const tbody = document.getElementById("tabelaResumo");
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td>${nomeArquivo}</td>
+    <td>${resultado}</td>
     <td>${produtos}</td>
     <td>${mercadoria}</td>
     <td>${servicos}</td>
     <td>${simples}</td>
-    <td>${resultado}</td>
   `;
   tbody.appendChild(tr);
 }
