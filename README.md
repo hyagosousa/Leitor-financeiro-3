@@ -51,7 +51,7 @@ button:hover { background: #008866; }
 
 <script>
 
-// PDF worker
+// worker PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 
@@ -90,7 +90,7 @@ async function lerPDF(file) {
   });
 }
 
-// converter valor texto → número
+// converter texto → número (mantém lógica interna correta)
 function converterParaNumero(valor) {
   if (!valor || valor === "-") return 0;
 
@@ -101,6 +101,12 @@ function converterParaNumero(valor) {
       .replace("(", "-")
       .replace(")", "")
   );
+}
+
+// remover parênteses apenas na exibição
+function limparParenteses(valor) {
+  if (!valor || valor === "-") return "-";
+  return valor.replace(/[()]/g, "");
 }
 
 function extrairInformacoes(texto, nomeArquivo) {
@@ -128,7 +134,7 @@ function extrairInformacoes(texto, nomeArquivo) {
   const servicos = pegarUltimoValor(buscarLinha("2700"));
   const simples = pegarUltimoValor(buscarLinha("2831"));
 
-  // converter para número
+  // valores numéricos
   const vResultado = converterParaNumero(resultado);
   const vProdutos = converterParaNumero(produtos);
   const vMercadoria = converterParaNumero(mercadoria);
@@ -141,32 +147,25 @@ function extrairInformacoes(texto, nomeArquivo) {
   const calcServicos = vServicos * 0.32;
   const calcSimples = vSimples * 0.05;
 
-  // regra 1
   const totalServicos = calcServicos + calcSimples;
-
-  // regra 2
   const totalGeral = calcProdutos + calcMercadoria + calcSimples;
 
-  // comparações
   const comparacao1 = totalServicos > vResultado ? "MAIOR" : "MENOR";
   const comparacao2 = totalGeral > vResultado ? "MAIOR" : "MENOR";
 
   const classe1 = comparacao1 === "MAIOR" ? "maior" : "menor";
   const classe2 = comparacao2 === "MAIOR" ? "maior" : "menor";
 
-  // remover parênteses APENAS do 2600
-  const resultadoSemParenteses = resultado ? resultado.replace(/[()]/g, "") : "-";
-
   const tbody = document.getElementById("tabelaResumo");
   const tr = document.createElement("tr");
 
   tr.innerHTML = `
     <td>${nomeArquivo}</td>
-    <td>${resultadoSemParenteses}</td>
-    <td>${produtos}</td>
-    <td>${mercadoria}</td>
-    <td>${servicos}</td>
-    <td>${simples}</td>
+    <td>${limparParenteses(resultado)}</td>
+    <td>${limparParenteses(produtos)}</td>
+    <td>${limparParenteses(mercadoria)}</td>
+    <td>${limparParenteses(servicos)}</td>
+    <td>${limparParenteses(simples)}</td>
     <td>${totalServicos.toFixed(2)}</td>
     <td class="${classe1}">${comparacao1}</td>
     <td>${totalGeral.toFixed(2)}</td>
