@@ -10,9 +10,10 @@
 body { font-family: Arial; background: #111; color: white; text-align: center; padding: 20px; }
 h1 { color: #00ffcc; }
 input { margin: 20px; padding: 10px; }
-table { width: 90%; margin: 20px auto; border-collapse: collapse; }
-th, td { border: 1px solid #fff; padding: 8px; }
-th { background: #00aa88; }
+table { width: 95%; margin: 20px auto; border-collapse: collapse; }
+th, td { border: 1px solid #fff; padding: 8px; text-align: right; }
+th { background: #00aa88; color: #fff; }
+td:first-child { text-align: left; }
 td { background: #063; }
 </style>
 </head>
@@ -27,9 +28,10 @@ td { background: #063; }
   <thead>
     <tr>
       <th>Arquivo</th>
-      <th>Vendas de Mercadoria</th>
-      <th>Prestação de Serviços</th>
-      <th>Simples Nacional</th>
+      <th>Produtos (2603)</th>
+      <th>Mercadoria (2652)</th>
+      <th>Prestação Serviços (2700)</th>
+      <th>Simples Nacional (2831)</th>
       <th>Resultado do Período</th>
     </tr>
   </thead>
@@ -76,8 +78,9 @@ function extrairInformacoes(texto, nomeArquivo) {
 
   texto = texto.replace(/\s+/g, " ");
 
-  // Função para pegar a quarta coluna (saldo)
+  // Função para pegar a quarta coluna (saldo) de uma linha
   function pegarSaldoDaLinha(linha) {
+    if (!linha) return "-";
     const numeros = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
     return numeros && numeros.length >= 4 ? numeros[3].replace(/\s+/g,"") : "-";
   }
@@ -89,21 +92,34 @@ function extrairInformacoes(texto, nomeArquivo) {
     return match ? match[0] : "";
   }
 
-  const vendasLinha = buscarLinha("2652");
+  const produtosLinha = buscarLinha("2603");
+  const mercadoriaLinha = buscarLinha("2652");
   const servicosLinha = buscarLinha("2700");
   const simplesLinha = buscarLinha("2831");
-  const resultadoLinha = texto.match(/resultado do período.*?(\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?)/i);
-  
-  const vendas = pegarSaldoDaLinha(vendasLinha);
+
+  const produtos = pegarSaldoDaLinha(produtosLinha);
+  const mercadoria = pegarSaldoDaLinha(mercadoriaLinha);
   const servicos = pegarSaldoDaLinha(servicosLinha);
   const simples = pegarSaldoDaLinha(simplesLinha);
-  const resultado = resultadoLinha ? resultadoLinha[1].replace(/\s+/g,"") : "-";
+
+  // Resultado do Período
+  let resultado = "-";
+  const regexResultado = /resultado do período(.{0,200})/i;
+  const matchResultado = texto.match(regexResultado);
+  if (matchResultado) {
+    const trecho = matchResultado[1];
+    const numeros = trecho.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
+    if (numeros && numeros.length >= 1) {
+      resultado = numeros[numeros.length - 1].replace(/\s+/g,"");
+    }
+  }
 
   const tbody = document.getElementById("tabelaResumo");
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td>${nomeArquivo}</td>
-    <td>${vendas}</td>
+    <td>${produtos}</td>
+    <td>${mercadoria}</td>
     <td>${servicos}</td>
     <td>${simples}</td>
     <td>${resultado}</td>
