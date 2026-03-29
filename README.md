@@ -7,24 +7,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
 <style>
-body {
-  font-family: Arial;
-  background: #111;
-  color: white;
-  text-align: center;
-  padding: 20px;
-}
+body { font-family: Arial; background: #111; color: white; text-align: center; padding: 20px; }
 h1 { color: #00ffcc; }
 input { margin: 20px; padding: 10px; }
-table {
-  width: 90%;
-  margin: 20px auto;
-  border-collapse: collapse;
-}
-th, td {
-  border: 1px solid #fff;
-  padding: 8px;
-}
+table { width: 90%; margin: 20px auto; border-collapse: collapse; }
+th, td { border: 1px solid #fff; padding: 8px; }
 th { background: #00aa88; }
 td { background: #063; }
 </style>
@@ -71,15 +58,10 @@ async function lerPDF(file) {
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
 
       let texto = "";
-
       for (let i = 1; i <= pdf.numPages; i++) {
         const pagina = await pdf.getPage(i);
         const conteudo = await pagina.getTextContent();
-
-        conteudo.items.forEach(item => {
-          texto += item.str + " ";
-        });
-
+        conteudo.items.forEach(item => { texto += item.str + " "; });
         texto += "\n";
       }
 
@@ -94,22 +76,28 @@ function extrairInformacoes(texto, nomeArquivo) {
 
   texto = texto.replace(/\s+/g, " ");
 
-  // Função auxiliar para pegar o 4º valor da linha
-  function pegarSaldo(linha) {
-    const valores = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
-    return valores && valores.length >= 4 ? valores[3].replace(/\s+/g, "") : "-";
+  // Função para pegar a quarta coluna (saldo)
+  function pegarSaldoDaLinha(linha) {
+    const numeros = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
+    return numeros && numeros.length >= 4 ? numeros[3].replace(/\s+/g,"") : "-";
   }
 
-  // Procurando linhas específicas pelo código
-  const vendasLinha = texto.match(/2652.*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
-  const servicosLinha = texto.match(/2700.*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
-  const simplesLinha = texto.match(/2831.*?(\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?)/i);
-  const resultadoLinha = texto.match(/resultado do período.*?(\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?)/i);
+  // Função para buscar linha pelo código exato
+  function buscarLinha(codigo) {
+    const regex = new RegExp(`${codigo}.*?(?=\\d{4}|$)`, "i");
+    const match = texto.match(regex);
+    return match ? match[0] : "";
+  }
 
-  const vendas = vendasLinha ? pegarSaldo(vendasLinha[0]) : "-";
-  const servicos = servicosLinha ? pegarSaldo(servicosLinha[0]) : "-";
-  const simples = simplesLinha ? pegarSaldo(simplesLinha[0]) : "-";
-  const resultado = resultadoLinha ? pegarSaldo(resultadoLinha[0]) : "-";
+  const vendasLinha = buscarLinha("2652");
+  const servicosLinha = buscarLinha("2700");
+  const simplesLinha = buscarLinha("2831");
+  const resultadoLinha = texto.match(/resultado do período.*?(\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?)/i);
+  
+  const vendas = pegarSaldoDaLinha(vendasLinha);
+  const servicos = pegarSaldoDaLinha(servicosLinha);
+  const simples = pegarSaldoDaLinha(simplesLinha);
+  const resultado = resultadoLinha ? resultadoLinha[1].replace(/\s+/g,"") : "-";
 
   const tbody = document.getElementById("tabelaResumo");
   const tr = document.createElement("tr");
