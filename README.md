@@ -109,10 +109,23 @@ reader.readAsArrayBuffer(file);
 });
 }
 
-// pegar nome da empresa
+// 🏢 pegar nome da empresa pela primeira linha válida
 function pegarNomeEmpresa(texto) {
-const match = texto.match(/empresa:\s*(.+)/i);
-if (match) return match[1].trim();
+const linhas = texto.split("\n");
+
+for (let linha of linhas) {
+linha = linha.trim();
+
+if (
+linha.length > 5 &&
+!linha.toLowerCase().includes("página") &&
+!linha.toLowerCase().includes("balancete") &&
+!linha.toLowerCase().includes("contábil")
+) {
+return linha.toUpperCase();
+}
+}
+
 return "Não identificado";
 }
 
@@ -216,11 +229,6 @@ const tabela = document.getElementById("tabela");
 const wb = XLSX.utils.table_to_book(tabela, { sheet: "Resumo" });
 XLSX.writeFile(wb, "Resumo_PDFs.xlsx");
 }
-
-</script>
-
-</body>
-</html>
 
 </script>
 
