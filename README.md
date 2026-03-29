@@ -1,20 +1,25 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <title>Resumo PDF Positivos</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body { font-family: Arial; background: #111; color: white; text-align: center; padding: 20px; }
 h1 { color: #00ffcc; }
-input { margin: 20px; padding: 10px; }
+input, button { margin: 10px; padding: 10px; }
 table { width: 95%; margin: 20px auto; border-collapse: collapse; }
 th, td { border: 1px solid #fff; padding: 8px; text-align: right; }
-th { background: #00aa88; color: #fff; }
+th { background: #00aa88; }
 td:first-child { text-align: left; }
 td { background: #063; }
+.maior { background: #0044ff; }
+.menor { background: #880000; }
+button { background: #00aa88; color: white; border: none; cursor: pointer; }
+button:hover { background: #008866; }
 </style>
 </head>
 
@@ -23,97 +28,186 @@ td { background: #063; }
 <h1>📄 Resumo de PDFs Positivos</h1>
 
 <input type="file" id="pdfInput" multiple accept="application/pdf">
+<br>
+<button onclick="exportarExcel()">📊 Exportar para Excel</button>
 
-<table>
-  <thead>
-    <tr>
-      <th>Arquivo</th>
-      <th>Resultado do Período (2600)</th>
-      <th>Produtos (2603)</th>
-      <th>Mercadoria (2652)</th>
-      <th>Prestação Serviços (2700)</th>
-      <th>Simples Nacional (2831)</th>
-    </tr>
-  </thead>
-  <tbody id="tabelaResumo"></tbody>
+<table id="tabela">
+<thead>
+<tr>
+<th>Arquivo</th>
+<th>Resultado (2600)</th>
+<th>Produtos (2603)</th>
+<th>Mercadoria (2652)</th>
+<th>Serviços (2700)</th>
+<th>Simples (2831)</th>
+<th>Serviços + Simples</th>
+<th>Comparação</th>
+<th>Prod + Merc + Simples</th>
+<th>Comparação</th>
+</tr>
+</thead>
+<tbody id="tabelaResumo"></tbody>
 </table>
 
 <script>
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+
 const input = document.getElementById("pdfInput");
 
 input.addEventListener("change", async (event) => {
-  document.getElementById("tabelaResumo").innerHTML = "";
-  const arquivos = event.target.files;
+document.getElementById("tabelaResumo").innerHTML = "";
+const arquivos = event.target.files;
 
-  for (let file of arquivos) {
-    const texto = await lerPDF(file);
-    extrairInformacoes(texto, file.name);
-  }
+for (let file of arquivos) {
+const texto = await lerPDF(file);
+extrairInformacoes(texto, file.name);
+}
 });
 
+// 🔥 LEITURA MELHORADA DO PDF
 async function lerPDF(file) {
-  const reader = new FileReader();
+const reader = new FileReader();
 
-  return new Promise((resolve) => {
-    reader.onload = async function () {
-      const typedarray = new Uint8Array(this.result);
-      const pdf = await pdfjsLib.getDocument(typedarray).promise;
+return new Promise((resolve) => {
+reader.onload = async function () {
+const typedarray = new Uint8Array(this.result);
+const pdf = await pdfjsLib.getDocument(typedarray).promise;
 
-      let texto = "";
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const pagina = await pdf.getPage(i);
-        const conteudo = await pagina.getTextContent();
-        conteudo.items.forEach(item => { texto += item.str + " "; });
-        texto += "\n";
-      }
+let linhas = [];
 
-      resolve(texto.toLowerCase());
-    };
+for (let i = 1; i <= pdf.numPages; i++) {
+const pagina = await pdf.getPage(i);
+const conteudo = await pagina.getTextContent();
 
-    reader.readAsArrayBuffer(file);
-  });
+// ordena por posição vertical
+const items = conteudo.items.sort((a, b) => b.transform[5] - a.transform[5]);
+
+let linhaAtual = "";
+let yAnterior = null;
+
+items.forEach(item => {
+const y = item.transform[5];
+
+if (yAnterior !== null && Math.abs(y - yAnterior) > 5) {
+linhas.push(linhaAtual);
+linhaAtual = "";
+}
+
+linhaAtual += item.str + " ";
+yAnterior = y;
+});
+
+if (linhaAtual) linhas.push(linhaAtual);
+}
+
+resolve(linhas.join("\n").toLowerCase());
+};
+
+reader.readAsArrayBuffer(file);
+});
+}
+
+// 🔢 converter número
+function converterParaNumero(valor) {
+if (!valor || valor === "-") return 0;
+
+return parseFloat(
+valor
+.replace(/\./g, "")
+.replace(",", ".")
+.replace("(", "-")
+.replace(")", "")
+);
+}
+
+// remover parênteses (visual)
+function limpar(valor) {
+if (!valor || valor === "-") return "-";
+return valor.replace(/[()]/g, "");
+}
+
+// 🔎 BUSCA CORRETA
+function buscarLinha(texto, codigo) {
+const linhas = texto.split("\n");
+
+for (let linha of linhas) {
+if (linha.trim().startsWith(codigo + " ")) {
+return linha;
+}
+}
+return "";
+}
+
+// 🎯 PEGAR SALDO CORRETO (ÚLTIMO VALOR)
+function pegarValor(linha) {
+if (!linha) return "-";
+
+const numeros = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
+if (!numeros) return "-";
+
+return numeros[numeros.length - 1];
 }
 
 function extrairInformacoes(texto, nomeArquivo) {
 
-  texto = texto.replace(/\s+/g, " ");
+const resultado = pegarValor(buscarLinha(texto, "2600"));
+const produtos = pegarValor(buscarLinha(texto, "2603"));
+const mercadoria = pegarValor(buscarLinha(texto, "2652"));
+const servicos = pegarValor(buscarLinha(texto, "2700"));
+const simples = pegarValor(buscarLinha(texto, "2831"));
 
-  function pegarSaldoDaLinha(linha) {
-    if (!linha) return "-";
-    const numeros = linha.match(/\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
-    return numeros && numeros.length >= 4 ? numeros[3].replace(/\s+/g,"") : "-";
-  }
+// valores numéricos
+const vResultado = converterParaNumero(resultado);
+const vProdutos = converterParaNumero(produtos);
+const vMercadoria = converterParaNumero(mercadoria);
+const vServicos = converterParaNumero(servicos);
+const vSimples = converterParaNumero(simples);
 
-  function buscarLinha(codigo) {
-    const regex = new RegExp(`${codigo}.*?(?=\\d{4}|$)`, "i");
-    const match = texto.match(regex);
-    return match ? match[0] : "";
-  }
+// cálculos
+const calcProdutos = vProdutos * 0.08;
+const calcMercadoria = vMercadoria * 0.08;
+const calcServicos = vServicos * 0.32;
+const calcSimples = vSimples * 0.05;
 
-  const resultadoLinha = buscarLinha("2600");
-  const produtosLinha = buscarLinha("2603");
-  const mercadoriaLinha = buscarLinha("2652");
-  const servicosLinha = buscarLinha("2700");
-  const simplesLinha = buscarLinha("2831");
+const totalServicos = calcServicos + calcSimples;
+const totalGeral = calcProdutos + calcMercadoria + calcSimples;
 
-  const resultado = pegarSaldoDaLinha(resultadoLinha);
-  const produtos = pegarSaldoDaLinha(produtosLinha);
-  const mercadoria = pegarSaldoDaLinha(mercadoriaLinha);
-  const servicos = pegarSaldoDaLinha(servicosLinha);
-  const simples = pegarSaldoDaLinha(simplesLinha);
+// comparações
+const comparacao1 = totalServicos > vResultado ? "MAIOR" : "MENOR";
+const comparacao2 = totalGeral > vResultado ? "MAIOR" : "MENOR";
 
-  const tbody = document.getElementById("tabelaResumo");
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${nomeArquivo}</td>
-    <td>${resultado}</td>
-    <td>${produtos}</td>
-    <td>${mercadoria}</td>
-    <td>${servicos}</td>
-    <td>${simples}</td>
-  `;
-  tbody.appendChild(tr);
+const classe1 = comparacao1 === "MAIOR" ? "maior" : "menor";
+const classe2 = comparacao2 === "MAIOR" ? "maior" : "menor";
+
+// montar tabela
+const tbody = document.getElementById("tabelaResumo");
+const tr = document.createElement("tr");
+
+tr.innerHTML = `
+<td>${nomeArquivo}</td>
+<td>${limpar(resultado)}</td>
+<td>${limpar(produtos)}</td>
+<td>${limpar(mercadoria)}</td>
+<td>${limpar(servicos)}</td>
+<td>${limpar(simples)}</td>
+<td>${totalServicos.toFixed(2)}</td>
+<td class="${classe1}">${comparacao1}</td>
+<td>${totalGeral.toFixed(2)}</td>
+<td class="${classe2}">${comparacao2}</td>
+`;
+
+tbody.appendChild(tr);
 }
+
+// 📊 exportar Excel
+function exportarExcel() {
+const tabela = document.getElementById("tabela");
+const wb = XLSX.utils.table_to_book(tabela, { sheet: "Resumo" });
+XLSX.writeFile(wb, "Resumo_PDFs.xlsx");
+}
+
 </script>
 
 </body>
