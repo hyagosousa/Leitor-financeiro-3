@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@ input, button { margin: 10px; padding: 10px; }
 table { width: 95%; margin: 20px auto; border-collapse: collapse; }
 th, td { border: 1px solid #fff; padding: 8px; text-align: right; }
 th { background: #00aa88; }
-td:first-child { text-align: left; }
+td:first-child, td:nth-child(2) { text-align: left; }
 td { background: #063; }
 .maior { background: #0044ff; }
 .menor { background: #880000; }
@@ -35,6 +35,7 @@ button:hover { background: #008866; }
 <thead>
 <tr>
 <th>Arquivo</th>
+<th>Empresa</th>
 <th>Resultado (2600)</th>
 <th>Produtos (2603)</th>
 <th>Mercadoria (2652)</th>
@@ -66,7 +67,7 @@ extrairInformacoes(texto, file.name);
 }
 });
 
-// 🔥 LEITURA MELHORADA DO PDF
+// leitura organizada do PDF
 async function lerPDF(file) {
 const reader = new FileReader();
 
@@ -81,7 +82,6 @@ for (let i = 1; i <= pdf.numPages; i++) {
 const pagina = await pdf.getPage(i);
 const conteudo = await pagina.getTextContent();
 
-// ordena por posição vertical
 const items = conteudo.items.sort((a, b) => b.transform[5] - a.transform[5]);
 
 let linhaAtual = "";
@@ -109,7 +109,14 @@ reader.readAsArrayBuffer(file);
 });
 }
 
-// 🔢 converter número
+// pegar nome da empresa
+function pegarNomeEmpresa(texto) {
+const match = texto.match(/empresa:\s*(.+)/i);
+if (match) return match[1].trim();
+return "Não identificado";
+}
+
+// converter número
 function converterParaNumero(valor) {
 if (!valor || valor === "-") return 0;
 
@@ -128,7 +135,7 @@ if (!valor || valor === "-") return "-";
 return valor.replace(/[()]/g, "");
 }
 
-// 🔎 BUSCA CORRETA
+// buscar linha correta
 function buscarLinha(texto, codigo) {
 const linhas = texto.split("\n");
 
@@ -140,7 +147,7 @@ return linha;
 return "";
 }
 
-// 🎯 PEGAR SALDO CORRETO (ÚLTIMO VALOR)
+// pegar saldo (último valor)
 function pegarValor(linha) {
 if (!linha) return "-";
 
@@ -152,13 +159,14 @@ return numeros[numeros.length - 1];
 
 function extrairInformacoes(texto, nomeArquivo) {
 
+const nomeEmpresa = pegarNomeEmpresa(texto);
+
 const resultado = pegarValor(buscarLinha(texto, "2600"));
 const produtos = pegarValor(buscarLinha(texto, "2603"));
 const mercadoria = pegarValor(buscarLinha(texto, "2652"));
 const servicos = pegarValor(buscarLinha(texto, "2700"));
 const simples = pegarValor(buscarLinha(texto, "2831"));
 
-// valores numéricos
 const vResultado = converterParaNumero(resultado);
 const vProdutos = converterParaNumero(produtos);
 const vMercadoria = converterParaNumero(mercadoria);
@@ -187,6 +195,7 @@ const tr = document.createElement("tr");
 
 tr.innerHTML = `
 <td>${nomeArquivo}</td>
+<td>${nomeEmpresa}</td>
 <td>${limpar(resultado)}</td>
 <td>${limpar(produtos)}</td>
 <td>${limpar(mercadoria)}</td>
@@ -201,12 +210,17 @@ tr.innerHTML = `
 tbody.appendChild(tr);
 }
 
-// 📊 exportar Excel
+// exportar Excel
 function exportarExcel() {
 const tabela = document.getElementById("tabela");
 const wb = XLSX.utils.table_to_book(tabela, { sheet: "Resumo" });
 XLSX.writeFile(wb, "Resumo_PDFs.xlsx");
 }
+
+</script>
+
+</body>
+</html>
 
 </script>
 
